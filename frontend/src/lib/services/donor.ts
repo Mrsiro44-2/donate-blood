@@ -25,5 +25,14 @@ export const donorService = {
   },
   getHistory: async () => {
     return apiClient.get<any, ApiResponse<DonationHistory[]>>('/donor/history');
+  },
+  getMyMatches: async () => {
+    return apiClient.get<any, any>('/donor/my-matches');
+  },
+  getAchievements: async () => {
+    return apiClient.get<any, any>('/donor/achievements');
+  },
+  getCertificate: async (donationId: number) => {
+    return apiClient.get<any, any>(`/donor/certificate/${donationId}`);
   }
 };
