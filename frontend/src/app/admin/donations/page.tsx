@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 import { adminDonationService } from '@/lib/services/admin-donations';
 import { adminUserService } from '@/lib/services/admin-users';
 import { adminMasterDataService } from '@/lib/services/admin-master-data';
+import { adminSchedulesService } from '@/lib/services/admin-schedules';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Loader2, Stethoscope, FileSignature, Plus, Filter, Eye, Save, RefreshCw } from 'lucide-react';
+import { Loader2, Stethoscope, FileSignature, Plus, Filter, Eye, Save, RefreshCw, CheckCircle, XCircle, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { BaseModal } from '@/components/ui/BaseModal';
 import { ExcelImportModal } from '@/components/ui/ExcelImportModal';
@@ -38,6 +39,7 @@ export default function AdminDonationsPage() {
   const [bloodComponents, setBloodComponents] = useState<any[]>([]);
 
   const [facilities, setFacilities] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
 
   // Modal Record Donation
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,9 +63,23 @@ export default function AdminDonationsPage() {
   const [creating, setCreating] = useState(false);
   const [createData, setCreateData] = useState({
     user_id: '',
+    facility_id: '',
+    schedule_id: '',
     specific_date: format(new Date(), 'yyyy-MM-dd'),
     notes: ''
   });
+
+  useEffect(() => {
+    if (isCreateOpen) {
+      setCreateData({
+        user_id: '',
+        facility_id: isStaff && currentUser?.facility_id ? currentUser.facility_id.toString() : '',
+        schedule_id: '',
+        specific_date: format(new Date(), 'yyyy-MM-dd'),
+        notes: ''
+      });
+    }
+  }, [isCreateOpen, isStaff, currentUser]);
 
   useEffect(() => {
     fetchMasterData();
@@ -76,14 +92,19 @@ export default function AdminDonationsPage() {
 
   const fetchMasterData = async () => {
     try {
-      const [btRes, compRes, facRes] = await Promise.all([
+      const [btRes, compRes, facRes, schedRes] = await Promise.all([
         adminMasterDataService.getBloodTypes({ limit: 100 }),
         adminMasterDataService.getBloodComponents(),
-        adminMasterDataService.getFacilities({ limit: 100 })
+        adminMasterDataService.getFacilities({ limit: 100 }),
+        adminSchedulesService.getSchedules({ limit: 100, status: 'OPEN' })
       ]);
       if (btRes) setBloodTypes(Array.isArray(btRes.data) ? btRes.data : (Array.isArray(btRes) ? btRes : []));
       if (compRes) setBloodComponents(Array.isArray(compRes.data) ? compRes.data : (Array.isArray(compRes) ? compRes : []));
       if (facRes) setFacilities(Array.isArray(facRes.data) ? facRes.data : (Array.isArray(facRes) ? facRes : []));
+      if (schedRes) {
+        const scheds = Array.isArray(schedRes.data) ? schedRes.data : ((schedRes.data as any)?.data || []);
+        setSchedules(scheds);
+      }
     } catch (error) {
       console.error('Failed to load master data');
     }
@@ -236,6 +257,7 @@ export default function AdminDonationsPage() {
       setCreating(true);
       await adminDonationService.createSlot({
         user_id: Number(createData.user_id),
+        schedule_id: createData.schedule_id ? Number(createData.schedule_id) : undefined,
         specific_date: createData.specific_date,
         notes: createData.notes || undefined
       });
@@ -303,22 +325,64 @@ export default function AdminDonationsPage() {
     }
   ];
 
-  const getRowActions = (slot: any): ActionItem[] => [
-    {
-      label: 'Khám & Thu máu',
-      icon: <Stethoscope className="w-4 h-4 text-blood" />,
-      hidden: ['CANCELLED', 'COMPLETED', 'EXAMINED_FAILED', 'REJECTED'].includes(slot.status) || slot.notes === 'COMPLETED',
-      onClick: () => handleOpenRecord(slot)
-    },
-    {
+  const handleQuickStatusChange = async (slotId: number, status: string) => {
+    try {
+      await adminDonationService.updateSlotStatus(slotId, status);
+      toast.success('Đã cập nhật trạng thái thành công');
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Cập nhật thất bại');
+    }
+  };
+
+  const getRowActions = (slot: any): ActionItem[] => {
+    const actions: ActionItem[] = [];
+
+    if (slot.status === 'PENDING') {
+      actions.push({
+        label: 'Xác nhận lịch',
+        icon: <CheckCircle className="w-4 h-4 text-emerald-500" />,
+        onClick: () => handleQuickStatusChange(slot.slot_id, 'CONFIRMED')
+      });
+      actions.push({
+        label: 'Hủy lịch hẹn',
+        icon: <XCircle className="w-4 h-4 text-red-500" />,
+        onClick: () => handleQuickStatusChange(slot.slot_id, 'CANCELLED')
+      });
+    }
+
+    if (slot.status === 'CONFIRMED') {
+      actions.push({
+        label: 'Người hiến đã đến',
+        icon: <UserCheck className="w-4 h-4 text-blue-500" />,
+        onClick: () => handleQuickStatusChange(slot.slot_id, 'ARRIVED')
+      });
+      actions.push({
+        label: 'Hủy lịch hẹn',
+        icon: <XCircle className="w-4 h-4 text-red-500" />,
+        onClick: () => handleQuickStatusChange(slot.slot_id, 'CANCELLED')
+      });
+    }
+
+    if (!['CANCELLED', 'COMPLETED', 'EXAMINED_FAILED', 'REJECTED'].includes(slot.status) && slot.notes !== 'COMPLETED') {
+      actions.push({
+        label: 'Khám & Thu máu',
+        icon: <Stethoscope className="w-4 h-4 text-blood" />,
+        onClick: () => handleOpenRecord(slot)
+      });
+    }
+
+    actions.push({
       label: 'Xem chi tiết',
       icon: <Eye className="w-4 h-4 text-slate-500" />,
       onClick: () => {
         setSelectedSlot(slot);
         setIsDetailOpen(true);
       }
-    }
-  ];
+    });
+
+    return actions;
+  };
 
   // Calculate next eligible date dynamically
   const selectedComponent = bloodComponents.find(c => c.component_id.toString() === recordData.component_id);
@@ -413,6 +477,67 @@ export default function AdminDonationsPage() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Cơ sở y tế</label>
+            <SearchableSelect 
+              value={createData.facility_id} 
+              onValueChange={v => {
+                setCreateData({
+                  ...createData, 
+                  facility_id: v,
+                  schedule_id: '' // reset lịch khi đổi cơ sở
+                });
+              }}
+              options={facilities.map(f => ({ value: f.facility_id.toString(), label: f.name || f.facility_name }))}
+              placeholder="Chọn cơ sở y tế"
+              triggerClassName="w-full"
+              disabled={isStaff}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Lịch hiến máu</label>
+            <SearchableSelect 
+              value={createData.schedule_id} 
+              onValueChange={v => {
+                const sched = schedules.find(s => s.schedule_id.toString() === v);
+                setCreateData({
+                  ...createData, 
+                  schedule_id: v,
+                  specific_date: sched ? format(new Date(sched.date), 'yyyy-MM-dd') : createData.specific_date
+                });
+              }}
+              options={schedules
+                .filter(s => {
+                  if (createData.facility_id && s.facility_id.toString() !== createData.facility_id) return false;
+                  try {
+                    let t_end = s.end_time;
+                    if (t_end && t_end.includes('T')) t_end = t_end.substring(11, 16);
+                    const scheduleDate = new Date(s.date);
+                    if (!isNaN(scheduleDate.getTime()) && t_end) {
+                      const parts = t_end.split(':');
+                      if (parts.length >= 2) {
+                        scheduleDate.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+                        if (scheduleDate.getTime() <= new Date().getTime()) return false;
+                      }
+                    }
+                  } catch(e) {}
+                  return true;
+                })
+                .map(s => {
+                  let t_start = s.start_time;
+                  if (t_start && t_start.includes('T')) t_start = t_start.substring(11, 16);
+                  let t_end = s.end_time;
+                  if (t_end && t_end.includes('T')) t_end = t_end.substring(11, 16);
+                  return { 
+                    value: s.schedule_id.toString(), 
+                    label: `${s.facility?.name || (s.facility as any)?.facility_name || 'Cơ sở'} - ${format(new Date(s.date), 'dd/MM/yyyy')} ${t_start} - ${t_end}` 
+                  };
+                })}
+              placeholder="Chọn lịch hiến máu"
+              triggerClassName="w-full"
+              disabled={!!createData.facility_id === false && isStaff === false && schedules.length > 0 ? false : (!!createData.facility_id === false && isStaff === true ? true : false)}
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Ngày hẹn</label>
             <Input 
               type="date"
@@ -420,6 +545,7 @@ export default function AdminDonationsPage() {
               value={createData.specific_date} 
               onChange={e => setCreateData({...createData, specific_date: e.target.value})} 
               required
+              disabled={!!createData.schedule_id}
             />
           </div>
           <div>

@@ -238,7 +238,7 @@ export default function AdminSchedulesPage() {
       title: 'Cơ sở y tế',
       render: (row) => (
         <div>
-          <p className="font-semibold text-slate-800">{row.facility?.name}</p>
+          <p className="font-semibold text-slate-800">{row.facility?.name || (row.facility as any)?.facility_name || 'Không xác định'}</p>
           <p className="text-xs text-slate-500 line-clamp-1">{row.facility?.address}</p>
         </div>
       )

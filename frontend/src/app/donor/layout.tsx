@@ -4,7 +4,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuthStore } from '@/lib/stores';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { User, Clock, CalendarPlus, Droplet, ClipboardList } from 'lucide-react';
+import { User, Clock, CalendarPlus, Droplet, ClipboardList, Award } from 'lucide-react';
 
 export default function DonorLayout({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = useAuthStore();
@@ -28,6 +28,8 @@ export default function DonorLayout({ children }: { children: ReactNode }) {
     { name: 'Hồ sơ của tôi', path: '/donor/profile', icon: User },
     { name: 'Lịch sử hiến máu', path: '/donor/history', icon: Clock },
     { name: 'Đăng ký hiến máu', path: '/donor/book', icon: CalendarPlus },
+    { name: 'Thành tích', path: '/donor/achievements', icon: Award },
+    { name: 'Lịch sử giúp đỡ', path: '/donor/my-matches', icon: Droplet },
     { name: 'Lịch sử yêu cầu máu', path: '/donor/requests', icon: ClipboardList },
   ];
 

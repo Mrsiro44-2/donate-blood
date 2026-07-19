@@ -974,9 +974,9 @@ export default function AdminRequestsPage() {
                             <div className="text-xs text-slate-500">{match.donor?.email}</div>
                           </td>
                           <td className="px-4 py-3 font-bold text-blood">{match.donor?.blood_type?.blood_type_code}</td>
-                          <td className="px-4 py-3 text-emerald-600 font-semibold">{match.match_score ? Number(match.match_score).toFixed(0) : 0}%</td>
+                          <td className="px-4 py-3 text-emerald-600 font-semibold">{match.match_score != null ? Number(match.match_score).toFixed(0) : '0'}%</td>
                           <td className="px-4 py-3">
-                            <Select value={match.match_status} onValueChange={(v) => handleUpdateMatchStatus(match.match_id, v)}>
+                            <Select disabled={selectedItem.status?.status_code === 'COMPLETED'} value={match.match_status} onValueChange={(v) => handleUpdateMatchStatus(match.match_id, v)}>
                               <SelectTrigger className="h-8 text-xs bg-white">
                                 <SelectValue />
                               </SelectTrigger>

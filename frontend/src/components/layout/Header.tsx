@@ -20,6 +20,8 @@ import { notificationService } from '@/lib/services/notification';
 const navLinks = [
   { name: 'Trang chủ', href: '/' },
   { name: 'Tìm người hiến', href: '/blood-requests' },
+  { name: 'Lịch hiến máu', href: '/schedules' },
+  { name: 'Bảng xếp hạng', href: '/leaderboard' },
   { 
     name: 'Về chúng tôi', 
     href: '/about',
