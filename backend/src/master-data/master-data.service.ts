@@ -159,7 +159,7 @@ export class MasterDataService {
 
     const [data, total] = await Promise.all([
       this.prisma.medical_facilities.findMany({ where, skip, take: limit, orderBy }),
-      this.prisma.medical_facilities.count({ where }),
+      this.prisma.medical_facilities.count({ where }), 
     ]);
 
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
@@ -337,6 +337,56 @@ export class MasterDataService {
       where: { blood_type_id: id },
       data: { is_active: false }
     });
+  }
+
+  // B17: Blood Compatibility Checker
+  async checkCompatibility(donorBloodTypeId: number, recipientBloodTypeId: number, componentId: number) {
+    const compatibility = await this.prisma.blood_compatibility.findFirst({
+      where: {
+        donor_blood_type_id: donorBloodTypeId,
+        recipient_blood_type_id: recipientBloodTypeId,
+        component_id: componentId,
+      }
+    });
+
+    if (compatibility) {
+      return { is_compatible: compatibility.is_compatible };
+    }
+
+    // Default fallback rules if not explicitly mapped
+    const donorType = await this.prisma.blood_types.findUnique({ where: { blood_type_id: donorBloodTypeId } });
+    const recipientType = await this.prisma.blood_types.findUnique({ where: { blood_type_id: recipientBloodTypeId } });
+    const component = await this.prisma.blood_components.findUnique({ where: { component_id: componentId } });
+
+    if (!donorType || !recipientType || !component) {
+      throw new BadRequestException('Thông tin nhóm máu hoặc thành phần máu không hợp lệ');
+    }
+
+    // Simple rule for Whole Blood / Red Blood Cells
+    let isCompatible = false;
+    
+    // O is universal donor for RBC, AB is universal recipient
+    // Rh- can donate to Rh+ and Rh-
+    // Rh+ can only donate to Rh+
+    const rhCompatible = donorType.rh_factor === '-' || donorType.rh_factor === recipientType.rh_factor;
+    
+    if (rhCompatible) {
+      if (donorType.abo === 'O') isCompatible = true;
+      else if (recipientType.abo === 'AB') isCompatible = true;
+      else if (donorType.abo === recipientType.abo) isCompatible = true;
+    }
+
+    // Plasma/Platelets have different rules (AB is universal donor, O is universal recipient)
+    if (component.component_code.includes('PLASMA') || component.component_code.includes('PLATELET')) {
+       // Reverse rule for ABO
+       isCompatible = false;
+       if (donorType.abo === 'AB') isCompatible = true;
+       else if (recipientType.abo === 'O') isCompatible = true;
+       else if (donorType.abo === recipientType.abo) isCompatible = true;
+       // Rh doesn't strictly matter for plasma, but we'll assume it's OK if ABO matches for simplicity if not in DB
+    }
+
+    return { is_compatible: isCompatible };
   }
 
   // --- Blood Compatibility ---

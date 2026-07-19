@@ -167,4 +167,31 @@ export class MailService {
       this.logger.error(`Failed to send change password email to ${email}`, error);
     }
   }
+  async sendDonorMatchEmail(email: string, name: string, patientName: string, bloodType: string, facilityName: string, facilityAddress: string) {
+    const content = `
+      <p>Xin chào <strong>${name}</strong>,</p>
+      <p>Hệ thống <strong>BloodLink</strong> vừa ghi nhận một yêu cầu máu khẩn cấp và bạn là một trong những người hiến máu phù hợp nhất.</p>
+      <div style="background-color: #f1f5f9; padding: 15px; border-left: 4px solid #991b1b; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0;"><strong>Bệnh nhân:</strong> ${patientName}</p>
+        <p style="margin: 0 0 10px 0;"><strong>Nhóm máu cần:</strong> <span style="color: #991b1b; font-weight: bold;">${bloodType}</span></p>
+        <p style="margin: 0 0 10px 0;"><strong>Tại cơ sở:</strong> ${facilityName}</p>
+        <p style="margin: 0;"><strong>Địa chỉ:</strong> ${facilityAddress}</p>
+      </div>
+      <p>Nếu bạn đủ điều kiện sức khỏe và có thể tham gia hiến máu lúc này, vui lòng đăng nhập vào ứng dụng để xác nhận.</p>
+      <p>Trân trọng,<br>Đội ngũ BloodLink</p>
+    `;
+
+    const html = this.getBaseTemplate('Yêu cầu hiến máu khẩn cấp - BloodLink', content);
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Khẩn cấp: Có bệnh nhân đang cần sự giúp đỡ của bạn - BloodLink',
+        html,
+      });
+      this.logger.log(`Donor match email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send donor match email to ${email}`, error);
+    }
+  }
 }

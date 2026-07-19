@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, ParseIntPipe, UseGuards, Query, Res, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, ParseIntPipe, Query, Res, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { MasterDataService } from './master-data.service';
@@ -72,6 +72,16 @@ export class MasterDataController {
   @Get('roles')
   async getRoles() {
     return await this.masterDataService.getRoles();
+  }
+
+  @Public()
+  @Post('check-compatibility')
+  async checkCompatibility(
+    @Body('donorBloodTypeId', ParseIntPipe) donorBloodTypeId: number,
+    @Body('recipientBloodTypeId', ParseIntPipe) recipientBloodTypeId: number,
+    @Body('componentId', ParseIntPipe) componentId: number
+  ) {
+    return await this.masterDataService.checkCompatibility(donorBloodTypeId, recipientBloodTypeId, componentId);
   }
 
   // --- ADMIN ROUTES ---
