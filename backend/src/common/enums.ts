@@ -2,10 +2,9 @@
 
 export enum RoleCode {
   GUEST = 'guest',
-  MEMBER = 'USER',
+  MEMBER = 'member',
   STAFF = 'staff',
   MODERATOR = 'moderator',
-  FACILITY_ADMIN = 'HOSPITAL_STAFF',
   ADMIN = 'admin',
 }
 
