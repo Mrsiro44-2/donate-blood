@@ -47,6 +47,45 @@ export class DonorController {
     return await this.donorService.getDonationHistory(req.user.user_id);
   }
 
+  @Get('my-matches')
+  async getMyMatches(@Req() req: any) {
+    return await this.donorService.getMyMatches(req.user.user_id);
+  }
+
+  @Get('achievements')
+  async getAchievements(@Req() req: any) {
+    return await this.donorService.getDonorAchievements(req.user.user_id);
+  }
+
+  @Get('certificate/:donationId')
+  async getCertificate(@Req() req: any, @Param('donationId', ParseIntPipe) donationId: number) {
+    return await this.donorService.getCertificateData(req.user.user_id, donationId);
+  }
+
+  @Public()
+  @Get('public/certificate/:donationId')
+  async getPublicCertificate(@Param('donationId', ParseIntPipe) donationId: number) {
+    return await this.donorService.getPublicCertificate(donationId);
+  }
+
+  @Public()
+  @Get('public/leaderboard')
+  async getPublicLeaderboard(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('search') search: string,
+    @Query('sortBy') sortBy: string,
+    @Query('sortOrder') sortOrder: string,
+  ) {
+    return await this.donorService.getPublicLeaderboard({
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 10,
+      search,
+      sortBy: sortBy || 'donations',
+      sortOrder: sortOrder || 'desc',
+    });
+  }
+
   @Get('my-slots')
   async getMySlots(@Req() req: any) {
     return await this.donorService.getMySlots(req.user.user_id);
@@ -59,13 +98,13 @@ export class DonorController {
   }
 
   // --- FACILITY ADMIN ROUTES ---
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.FACILITY_ADMIN)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
   @Get('slots')
   async getSlots(@Query() query: PaginationDto, @Req() req: any) {
     return await this.donorService.getSlots(query, req.user);
   }
 
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.FACILITY_ADMIN)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
   @Get('slots/export')
   async exportExcel(@Query() query: any, @Res() res: Response, @Req() req: any) {
     const buffer = await this.donorService.exportExcel(query, req.user);
@@ -74,7 +113,7 @@ export class DonorController {
     res.send(buffer);
   }
 
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.FACILITY_ADMIN)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
   @Get('slots/template')
   async downloadTemplate(@Res() res: Response) {
     const buffer = await this.donorService.getTemplate();
@@ -83,7 +122,7 @@ export class DonorController {
     res.send(buffer);
   }
 
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.FACILITY_ADMIN)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
   @Post('slots/import')
   @UseInterceptors(FileInterceptor('file'))
   async importExcel(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
@@ -91,19 +130,19 @@ export class DonorController {
     return await this.donorService.importExcel(file.buffer, req.user);
   }
 
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.FACILITY_ADMIN)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
   @Post('slots')
   async createSlot(@Body() dto: any, @Req() req: any) {
     return await this.donorService.createAdminSlot(dto, req.user);
   }
 
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.FACILITY_ADMIN)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
   @Put('slots/:id/status')
   async updateSlotStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSlotStatusDto, @Req() req: any) {
     return await this.donorService.updateSlotStatus(id, dto, req.user);
   }
 
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.FACILITY_ADMIN)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
   @Post('donations')
   async recordDonation(@Req() req: any, @Body() dto: RecordDonationDto) {
     return await this.donorService.recordDonation(req.user, dto);
