@@ -53,7 +53,7 @@ export class SchedulesService implements OnModuleInit {
     if (query.status) where.status = query.status;
     if (query.date) where.date = new Date(query.date);
 
-    if (user.role_code === 'staff') {
+    if (user.role_code === 'HOSPITAL_STAFF') {
       if (!user.facility_id) {
         return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
       }
@@ -89,7 +89,7 @@ export class SchedulesService implements OnModuleInit {
 
   async getScheduleById(id: number, user: any) {
     const where: any = { schedule_id: id };
-    if (user.role_code === 'staff') {
+    if (user.role_code === 'HOSPITAL_STAFF') {
       if (!user.facility_id) throw new NotFoundException('Lịch hiến máu không tồn tại hoặc bạn không có quyền xem');
       where.facility_id = user.facility_id;
     }
@@ -118,7 +118,7 @@ export class SchedulesService implements OnModuleInit {
       throw new BadRequestException('Giờ kết thúc phải lớn hơn giờ bắt đầu trong cùng một ngày');
     }
     
-    const facility_id = user.role_code === 'staff' ? user.facility_id : dto.facility_id;
+    const facility_id = user.role_code === 'HOSPITAL_STAFF' ? user.facility_id : dto.facility_id;
     if (!facility_id) throw new BadRequestException('Vui lòng chọn cơ sở y tế');
 
     return await this.prisma.facility_donation_schedules.create({
@@ -136,7 +136,7 @@ export class SchedulesService implements OnModuleInit {
 
   async updateSchedule(id: number, dto: UpdateScheduleDto, user: any) {
     const where: any = { schedule_id: id };
-    if (user.role_code === 'staff') {
+    if (user.role_code === 'HOSPITAL_STAFF') {
       if (!user.facility_id) throw new NotFoundException('Lịch hiến máu không tồn tại hoặc bạn không có quyền sửa');
       where.facility_id = user.facility_id;
     }
@@ -190,7 +190,7 @@ export class SchedulesService implements OnModuleInit {
 
   async deleteSchedule(id: number, user: any) {
     const where: any = { schedule_id: id };
-    if (user.role_code === 'staff') {
+    if (user.role_code === 'HOSPITAL_STAFF') {
       if (!user.facility_id) throw new NotFoundException('Lịch hiến máu không tồn tại');
       where.facility_id = user.facility_id;
     }

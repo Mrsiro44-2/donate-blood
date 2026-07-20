@@ -650,7 +650,7 @@ export class DonorService {
       };
     }
 
-    if (user.role_code === 'staff') {
+    if (user.role_code === 'HOSPITAL_STAFF') {
       where.schedule = {
         facility_id: user.facility_id || -1
       };
@@ -677,7 +677,7 @@ export class DonorService {
   }
 
   async createAdminSlot(dto: any, user: any) {
-    if (user.role_code === 'staff') {
+    if (user.role_code === 'HOSPITAL_STAFF') {
       if (dto.schedule_id) {
         const schedule = await this.prisma.facility_donation_schedules.findUnique({
           where: { schedule_id: Number(dto.schedule_id) }
@@ -717,7 +717,7 @@ export class DonorService {
     });
     if (!slot) throw new NotFoundException('Slot không tồn tại');
 
-    if (user.role_code === 'staff' && slot.schedule?.facility_id !== user.facility_id) {
+    if (user.role_code === 'HOSPITAL_STAFF' && slot.schedule?.facility_id !== user.facility_id) {
       throw new BadRequestException('Bạn không có quyền cập nhật slot của cơ sở khác');
     }
 
@@ -754,7 +754,7 @@ export class DonorService {
   }
 
   async recordDonation(user: any, dto: RecordDonationDto) {
-    const facilityId = user.role_code === 'staff' ? user.facility_id : dto.facility_id;
+    const facilityId = user.role_code === 'HOSPITAL_STAFF' ? user.facility_id : dto.facility_id;
     if (!facilityId) throw new BadRequestException('Cơ sở y tế không hợp lệ');
 
     return await this.prisma.$transaction(async (tx) => {

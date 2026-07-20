@@ -138,13 +138,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     <p className="text-xs text-blood font-medium mt-1 truncate">{user.facility.facility_name}</p>
                   )}
                 </div>
-                <DropdownMenuItem className="cursor-pointer py-2">
+                <DropdownMenuItem onClick={() => router.push('/donor/profile')} className="cursor-pointer py-2">
                   <User className="w-4 h-4 mr-2 text-slate-500" />
                   Hồ sơ cá nhân
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer py-2">
-                  <Settings className="w-4 h-4 mr-2 text-slate-500" />
-                  Cài đặt tài khoản
                 </DropdownMenuItem>
                 <div className="h-px bg-slate-100 my-1"></div>
                 <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:bg-red-50 focus:text-red-600 cursor-pointer py-2 font-medium">

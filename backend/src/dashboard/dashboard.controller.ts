@@ -12,7 +12,7 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('stats')
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF, RoleCode.MODERATOR)
   async getStats(
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
@@ -22,7 +22,7 @@ export class DashboardController {
     return await this.dashboardService.getStats(startDate, endDate, facilityId, user);
   }
   @Get('export-report')
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF, RoleCode.MODERATOR)
   async exportReport(
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,

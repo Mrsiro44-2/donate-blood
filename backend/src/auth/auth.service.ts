@@ -27,7 +27,7 @@ export class AuthService {
     }
 
     const memberRole = await this.prisma.roles.findUnique({
-      where: { role_code: RoleCode.MEMBER },
+      where: { role_code: RoleCode.USER },
     });
 
     if (!memberRole) {
@@ -81,7 +81,6 @@ export class AuthService {
       };
     });
 
-    // Gửi email bên ngoài transaction để tránh timeout
     await this.mailService.sendVerificationEmail(dto.email, otpCode, dto.full_name);
 
     return {

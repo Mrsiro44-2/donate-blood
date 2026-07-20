@@ -43,7 +43,7 @@ export default function AdminRequestsPage() {
   const [urgencyId, setUrgencyId] = useState<string>('ALL');
   
   const currentUser = useAuthStore(state => state.user);
-  const isStaff = currentUser?.role?.role_code === 'HOSPITAL_STAFF' || currentUser?.role?.role_code === 'STAFF' || (typeof currentUser?.role === 'string' && ['HOSPITAL_STAFF', 'STAFF'].includes(currentUser.role));
+  const isStaff = currentUser?.role?.role_code === 'HOSPITAL_STAFF' || (typeof currentUser?.role === 'string' && currentUser.role === 'HOSPITAL_STAFF');
 
   // Master Data
   const [bloodTypes, setBloodTypes] = useState<any[]>([]);

@@ -16,8 +16,8 @@ async function main() {
   await prisma.blood_request_inventory_allocations.deleteMany();
   await prisma.blood_inventory.deleteMany();
   
-  await prisma.donations.deleteMany();
   await prisma.donation_reminders.deleteMany();
+  await prisma.donations.deleteMany();
   await prisma.blood_request_donor_matches.deleteMany();
   await prisma.blood_request_status_history.deleteMany();
   await prisma.blood_requests.deleteMany();

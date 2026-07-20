@@ -7,6 +7,29 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getStats(startDateStr?: string, endDateStr?: string, facilityIdStr?: string, user?: any) {
+    if (user?.role_code === 'MODERATOR') {
+      const postsCount = await this.prisma.blog_posts.count();
+      const categoriesCount = await this.prisma.blog_categories.count();
+      const commentsCount = await this.prisma.blog_comments.count();
+      const pendingCommentsCount = await this.prisma.blog_comments.count({ where: { is_approved: false } });
+      const documentsCount = await this.prisma.education_documents.count();
+      const docCategoriesCount = await this.prisma.education_document_categories.count();
+
+      return {
+        stats: {
+          posts: postsCount,
+          categories: categoriesCount,
+          comments: commentsCount,
+          documents: documentsCount,
+          docCategories: docCategoriesCount
+        },
+        alerts: {
+          pendingComments: pendingCommentsCount
+        },
+        chartData: [] // Có thể bổ sung biểu đồ cho moderator sau
+      };
+    }
+
     // Determine dates
     let startDate = new Date();
     startDate.setDate(startDate.getDate() - 7); // default 7 days ago
@@ -25,7 +48,7 @@ export class DashboardService {
     }
 
     let facilityId = facilityIdStr ? parseInt(facilityIdStr, 10) : undefined;
-    if (user?.role_code === 'staff') {
+    if (user?.role_code === 'HOSPITAL_STAFF') {
       facilityId = user.facility_id || -1;
     }
 

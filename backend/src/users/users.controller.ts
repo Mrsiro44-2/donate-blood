@@ -39,7 +39,7 @@ export class UsersController {
   }
 
   // Admin Only
-  @Roles(RoleCode.ADMIN, RoleCode.STAFF)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF)
   @Get()
   async getAllUsers(@Query() query: UserFilterDto) {
     return await this.usersService.getAllUsers(query);
@@ -71,7 +71,7 @@ export class UsersController {
     return await this.usersService.importExcel(file.buffer, req.user.user_id);
   }
 
-  @Roles(RoleCode.ADMIN)
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF)
   @Get(':id')
   async getUserById(@Param('id', ParseIntPipe) id: number) {
     return await this.usersService.getUserById(id);
