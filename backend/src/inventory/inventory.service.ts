@@ -14,7 +14,7 @@ export class InventoryService {
   ) { }
 
   async receiveBlood(dto: any, user: any) {
-    const facility_id = user.role_code === 'staff' ? user.facility_id : dto.facility_id;
+    const facility_id = user.role_code === 'HOSPITAL_STAFF' ? user.facility_id : dto.facility_id;
     if (!facility_id) throw new BadRequestException('Cơ sở y tế không được để trống');
 
     const existing = await this.prisma.blood_inventory.findUnique({
@@ -65,14 +65,14 @@ export class InventoryService {
       throw new NotFoundException('Không tìm thấy túi máu');
     }
 
-    if (user.role_code === 'staff' && inventory.facility_id !== user.facility_id) {
+    if (user.role_code === 'HOSPITAL_STAFF' && inventory.facility_id !== user.facility_id) {
       throw new BadRequestException('Bạn không có quyền sửa túi máu của cơ sở khác');
     }
 
     return await this.prisma.blood_inventory.update({
       where: { inventory_id: inventoryId },
       data: {
-        facility_id: user.role_code === 'staff' ? undefined : (dto.facility_id !== undefined ? dto.facility_id : undefined),
+        facility_id: user.role_code === 'HOSPITAL_STAFF' ? undefined : (dto.facility_id !== undefined ? dto.facility_id : undefined),
         blood_type_id: dto.blood_type_id !== undefined ? dto.blood_type_id : undefined,
         component_id: dto.component_id !== undefined ? dto.component_id : undefined,
         bag_code: dto.bag_code !== undefined ? dto.bag_code : undefined,
@@ -97,7 +97,7 @@ export class InventoryService {
         throw new NotFoundException('Không tìm thấy túi máu');
       }
 
-      if (user.role_code === 'staff' && inventory.facility_id !== user.facility_id) {
+      if (user.role_code === 'HOSPITAL_STAFF' && inventory.facility_id !== user.facility_id) {
         throw new BadRequestException('Bạn không có quyền tiêu hủy túi máu của cơ sở khác');
       }
 
@@ -140,7 +140,7 @@ export class InventoryService {
         throw new NotFoundException('Không tìm thấy túi máu');
       }
 
-      if (user.role_code === 'staff' && inventory.facility_id !== user.facility_id) {
+      if (user.role_code === 'HOSPITAL_STAFF' && inventory.facility_id !== user.facility_id) {
         throw new BadRequestException('Bạn không có quyền chuyển túi máu của cơ sở khác');
       }
 
@@ -178,7 +178,7 @@ export class InventoryService {
    */
   async getInventoryStats(user: any) {
     const where: any = { status_code: 'AVAILABLE' };
-    if (user.role_code === 'staff') {
+    if (user.role_code === 'HOSPITAL_STAFF') {
       where.facility_id = user.facility_id || -1;
     }
 
@@ -202,7 +202,7 @@ export class InventoryService {
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (user.role_code === 'staff') {
+    if (user.role_code === 'HOSPITAL_STAFF') {
       where.facility_id = user.facility_id || -1;
     } else if (query.facility_id) {
       where.facility_id = Number(query.facility_id);
@@ -271,7 +271,7 @@ export class InventoryService {
       try {
         const user = await this.prisma.users.findUnique({ where: { user_id: staffId }, include: { role: true } });
         let facilityId = Number(row['Mã cơ sở (ID)']);
-        if (user?.role?.role_code === 'staff') {
+        if (user?.role?.role_code === 'HOSPITAL_STAFF') {
           facilityId = user.facility_id || -1;
         }
         const bloodTypeId = Number(row['Mã nhóm máu (ID)']);

@@ -1,11 +1,11 @@
 // ===== ENUMS bám sát DB CHECK constraints =====
 
 export enum RoleCode {
-  GUEST = 'guest',
-  MEMBER = 'member',
-  STAFF = 'staff',
-  MODERATOR = 'moderator',
-  ADMIN = 'admin',
+  ADMIN = 'ADMIN',
+  STAFF = 'STAFF',
+  MODERATOR = 'MODERATOR',
+  HOSPITAL_STAFF = 'HOSPITAL_STAFF',
+  USER = 'USER',
 }
 
 export enum Gender {

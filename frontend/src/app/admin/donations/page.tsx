@@ -25,7 +25,7 @@ export default function AdminDonationsPage() {
   const [users, setUsers] = useState<any[]>([]);
   
   const currentUser = useAuthStore(state => state.user);
-  const isStaff = currentUser?.role?.role_code === 'HOSPITAL_STAFF' || currentUser?.role?.role_code === 'STAFF' || (typeof currentUser?.role === 'string' && ['HOSPITAL_STAFF', 'STAFF'].includes(currentUser.role));
+  const isStaff = currentUser?.role?.role_code === 'HOSPITAL_STAFF' || (typeof currentUser?.role === 'string' && currentUser.role === 'HOSPITAL_STAFF');
 
   // DataTable state
   const [page, setPage] = useState(1);

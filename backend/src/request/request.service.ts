@@ -56,7 +56,7 @@ export class RequestService {
   }
 
   async createRequest(dto: CreateRequestDto, user: any) {
-    const facility_id = user?.role_code === 'staff' ? user.facility_id : dto.facility_id;
+    const facility_id = user?.role_code === 'HOSPITAL_STAFF' ? user.facility_id : dto.facility_id;
     if (!facility_id) throw new BadRequestException('Vui lòng chọn cơ sở y tế');
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -190,7 +190,7 @@ export class RequestService {
         throw new BadRequestException('Chỉ có thể xử lý yêu cầu ở trạng thái pending');
       }
 
-      if (user.role_code === 'staff' && request.facility_id !== user.facility_id) {
+      if (user.role_code === 'HOSPITAL_STAFF' && request.facility_id !== user.facility_id) {
         throw new BadRequestException('Bạn không có quyền xử lý yêu cầu của cơ sở khác');
       }
 
@@ -318,7 +318,7 @@ export class RequestService {
 
     const where: any = {};
     if (query.status_id) where.status_id = Number(query.status_id);
-    if (user?.role_code === 'staff') {
+    if (user?.role_code === 'HOSPITAL_STAFF') {
       where.facility_id = user.facility_id || -1;
     } else if (query.facility_id) {
       where.facility_id = Number(query.facility_id);
@@ -431,7 +431,7 @@ export class RequestService {
     for (const row of data) {
       try {
         let facilityId = Number(row['Cơ sở (ID)']);
-        if (user.role_code === 'staff') facilityId = user.facility_id;
+        if (user.role_code === 'HOSPITAL_STAFF') facilityId = user.facility_id;
         const patientName = row['Tên bệnh nhân'];
         const bloodTypeId = Number(row['Nhóm máu (ID)']);
         const componentId = Number(row['Thành phần (ID)']);
@@ -485,7 +485,7 @@ export class RequestService {
   async updateRequest(requestId: number, dto: Partial<CreateRequestDto>, user: any) {
     const req = await this.prisma.blood_requests.findUnique({ where: { request_id: requestId }, include: { status: true } });
     if (!req) throw new NotFoundException('Không tìm thấy yêu cầu');
-    if (user.role_code === 'staff' && req.facility_id !== user.facility_id) {
+    if (user.role_code === 'HOSPITAL_STAFF' && req.facility_id !== user.facility_id) {
       throw new BadRequestException('Bạn không có quyền sửa yêu cầu này');
     }
     if (req.status.status_code.toLowerCase() !== 'pending') {
@@ -494,7 +494,7 @@ export class RequestService {
     return await this.prisma.blood_requests.update({
       where: { request_id: requestId },
       data: {
-        facility_id: user.role_code === 'staff' ? undefined : dto.facility_id,
+        facility_id: user.role_code === 'HOSPITAL_STAFF' ? undefined : dto.facility_id,
         patient_name: dto.patient_name,
         blood_type_id: dto.blood_type_id,
         component_id: dto.component_id,
@@ -518,7 +518,7 @@ export class RequestService {
   async deleteRequest(requestId: number, user: any) {
     const req = await this.prisma.blood_requests.findUnique({ where: { request_id: requestId }, include: { status: true } });
     if (!req) throw new NotFoundException('Không tìm thấy yêu cầu');
-    if (user.role_code === 'staff' && req.facility_id !== user.facility_id) {
+    if (user.role_code === 'HOSPITAL_STAFF' && req.facility_id !== user.facility_id) {
       throw new BadRequestException('Bạn không có quyền xóa yêu cầu này');
     }
     if (!['pending', 'matching_donors'].includes(req.status.status_code.toLowerCase())) {
@@ -533,7 +533,7 @@ export class RequestService {
   async cancelRequest(requestId: number, user: any) {
     const req = await this.prisma.blood_requests.findUnique({ where: { request_id: requestId }, include: { status: true } });
     if (!req) throw new NotFoundException('Không tìm thấy yêu cầu');
-    if (user.role_code === 'staff' && req.facility_id !== user.facility_id) {
+    if (user.role_code === 'HOSPITAL_STAFF' && req.facility_id !== user.facility_id) {
       throw new BadRequestException('Bạn không có quyền hủy yêu cầu này');
     }
     if (!['pending', 'matching_donors'].includes(req.status.status_code.toLowerCase())) {
@@ -589,7 +589,7 @@ export class RequestService {
   // --- MATCHING & ALLOCATION (ADMIN) ---
 
   async getMatches(requestId: number, user?: any) {
-    if (user?.role_code === 'staff') {
+    if (user?.role_code === 'HOSPITAL_STAFF') {
       const req = await this.prisma.blood_requests.findUnique({ where: { request_id: requestId } });
       if (req?.facility_id !== user.facility_id) throw new BadRequestException('Bạn không có quyền xem thông tin này');
     }
@@ -612,7 +612,7 @@ export class RequestService {
     });
 
     if (!request) throw new NotFoundException('Yêu cầu không tồn tại');
-    if (user?.role_code === 'staff' && request.facility_id !== user.facility_id) {
+    if (user?.role_code === 'HOSPITAL_STAFF' && request.facility_id !== user.facility_id) {
       throw new BadRequestException('Bạn không có quyền thao tác trên yêu cầu này');
     }
 
@@ -764,7 +764,7 @@ export class RequestService {
       include: { request: true }
     });
     if (!match) throw new NotFoundException('Không tìm thấy ghép nối');
-    if (user?.role_code === 'staff' && match.request?.facility_id !== user.facility_id) {
+    if (user?.role_code === 'HOSPITAL_STAFF' && match.request?.facility_id !== user.facility_id) {
       throw new BadRequestException('Bạn không có quyền thao tác');
     }
 
@@ -775,7 +775,7 @@ export class RequestService {
   }
 
   async getAllocations(requestId: number, user?: any) {
-    if (user?.role_code === 'staff') {
+    if (user?.role_code === 'HOSPITAL_STAFF') {
       const req = await this.prisma.blood_requests.findUnique({ where: { request_id: requestId } });
       if (req?.facility_id !== user.facility_id) throw new BadRequestException('Bạn không có quyền xem thông tin này');
     }
@@ -792,7 +792,7 @@ export class RequestService {
     return await this.prisma.$transaction(async (tx) => {
       const request = await tx.blood_requests.findUnique({ where: { request_id: requestId } });
       if (!request) throw new NotFoundException('Yêu cầu không tồn tại');
-      if (user.role_code === 'staff' && request.facility_id !== user.facility_id) {
+      if (user.role_code === 'HOSPITAL_STAFF' && request.facility_id !== user.facility_id) {
         throw new BadRequestException('Bạn không có quyền cấp phát cho yêu cầu này');
       }
 
@@ -895,7 +895,7 @@ export class RequestService {
         throw new NotFoundException('Phân bổ không tồn tại hoặc đã được giải phóng');
       }
 
-      if (user.role_code === 'staff' && allocation.request?.facility_id !== user.facility_id) {
+      if (user.role_code === 'HOSPITAL_STAFF' && allocation.request?.facility_id !== user.facility_id) {
         throw new BadRequestException('Bạn không có quyền giải phóng phân bổ này');
       }
 
