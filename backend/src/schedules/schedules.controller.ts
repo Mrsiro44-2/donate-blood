@@ -69,7 +69,7 @@ export class SchedulesController {
     const { buffer, filename } = await this.schedulesService.exportScheduleDonors(id, user);
     
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
     
     return res.send(buffer);
   }

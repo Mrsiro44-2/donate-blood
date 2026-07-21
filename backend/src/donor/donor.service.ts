@@ -152,6 +152,10 @@ export class DonorService {
   }
 
   async bookDonationSlot(userId: number, data: BookDonationSlotDto) {
+    if (data.is_health_cleared === false) {
+      throw new BadRequestException('Xin lỗi bạn, với dữ liệu sàng lọc hiện tại thì bạn không thể hiến máu được rồi. Hãy khám bệnh kỹ và chăm sóc sức khỏe nhé!');
+    }
+
     if (!data.schedule_id && (!data.request_id || !data.specific_date || !data.facility_id)) {
       throw new BadRequestException('Vui lòng chọn lịch hiến máu hoặc cung cấp thông tin yêu cầu và ngày.');
     }

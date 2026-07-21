@@ -206,7 +206,7 @@ export class RequestService {
 
       if (availableInventory.length >= request.units_needed) {
         // ĐỦ MÁU -> Cấp từ kho
-        const allocatedStatus = await tx.blood_request_statuses.findFirst({ where: { status_code: 'allocated_stock' } });
+        const allocatedStatus = await tx.blood_request_statuses.findFirst({ where: { status_code: 'ALLOCATED' } });
 
         // Cập nhật trạng thái request
         await tx.blood_requests.update({
@@ -251,7 +251,7 @@ export class RequestService {
         return { success: true, message: 'Đã cấp đủ máu từ kho.' };
 
       } else {
-        const matchingStatus = await tx.blood_request_statuses.findFirst({ where: { status_code: 'matching_donors' } });
+        const matchingStatus = await tx.blood_request_statuses.findFirst({ where: { status_code: 'APPROVED' } });
 
         await tx.blood_requests.update({
           where: { request_id: requestId },
