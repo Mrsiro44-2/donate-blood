@@ -206,7 +206,8 @@ export default function BookDonationPage() {
         facility_id: requestContext ? Number(facilityIdParam) : undefined,
         specific_date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined,
         expected_time: expectedTime,
-        notes: finalNotes
+        notes: finalNotes,
+        is_health_cleared: isHealthCleared
       });
       
       toast.success('Đăng ký lịch hiến máu thành công!');

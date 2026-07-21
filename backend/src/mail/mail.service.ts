@@ -194,4 +194,30 @@ export class MailService {
       this.logger.error(`Failed to send donor match email to ${email}`, error);
     }
   }
+
+  async sendContactEmail(userEmail: string, name: string, subject: string, message: string) {
+    const userContent = `
+      <p>Xin chào <strong>${name}</strong>,</p>
+      <p>Cảm ơn bạn đã liên hệ với <strong>BloodLink</strong>. Chúng tôi đã nhận được tin nhắn của bạn với nội dung như sau:</p>
+      <div style="background-color: #f1f5f9; padding: 15px; border-left: 4px solid #991b1b; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0;"><strong>Chủ đề:</strong> ${subject}</p>
+        <p style="margin: 0;"><strong>Nội dung:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>
+      </div>
+      <p>Đội ngũ của chúng tôi sẽ xem xét và phản hồi lại bạn sớm nhất thông qua email hoặc số điện thoại bạn đã cung cấp.</p>
+      <p>Trân trọng,<br>Đội ngũ BloodLink</p>
+    `;
+
+    const userHtml = this.getBaseTemplate('Chúng tôi đã nhận được liên hệ của bạn - BloodLink', userContent);
+
+    try {
+      await this.mailerService.sendMail({
+        to: userEmail,
+        subject: 'Xác nhận: Chúng tôi đã nhận được liên hệ của bạn - BloodLink',
+        html: userHtml,
+      });
+      this.logger.log(`Contact confirmation email sent to user ${userEmail}`);
+    } catch (error) {
+      this.logger.error(`Failed to send contact confirmation email to user ${userEmail}`, error);
+    }
+  }
 }
