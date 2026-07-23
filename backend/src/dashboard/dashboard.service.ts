@@ -4,7 +4,7 @@ import { ExcelUtil } from '../common/utils/excel.util';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async getStats(startDateStr?: string, endDateStr?: string, facilityIdStr?: string, user?: any) {
     if (user?.role_code === 'MODERATOR') {
@@ -61,7 +61,7 @@ export class DashboardService {
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    
+
     const todayDonationsCount = await this.prisma.donations.count({
       where: {
         donation_date: {
@@ -94,8 +94,7 @@ export class DashboardService {
     // 3. Người đăng ký mới (New donors in period)
     const newDonorsCount = await this.prisma.users.count({
       where: {
-        role: { role_code: 'member' },
-        is_donor_registered: true,
+        role: { role_code: 'USER' },
         created_at: {
           gte: startDate,
           lte: endDate
@@ -128,13 +127,12 @@ export class DashboardService {
     // 6. Tổng số người hiến (Total donors overall)
     const totalDonorsCount = await this.prisma.users.count({
       where: {
-        role: { role_code: 'member' },
-        is_donor_registered: true
+        role: { role_code: 'USER' }
       }
     });
 
     // --- ALERTS ---
-    
+
     // Alert 1: Low Blood Inventory (e.g., < 10 bags)
     const inventoryByBloodType = await this.prisma.blood_inventory.groupBy({
       by: ['blood_type_id'],
@@ -148,7 +146,7 @@ export class DashboardService {
         inventory_id: true
       }
     });
-    
+
     const bloodTypes = await this.prisma.blood_types.findMany();
     const lowInventoryTypes = inventoryByBloodType
       .filter(item => item._count.inventory_id < 10)
@@ -185,7 +183,7 @@ export class DashboardService {
     });
 
     // Alert 4: Pending Posts/Comments
-    const pendingCommentsCount = 0; 
+    const pendingCommentsCount = 0;
 
     // --- CHART DATA ---
     const donationsInRange = await this.prisma.donations.findMany({
@@ -204,7 +202,7 @@ export class DashboardService {
     });
 
     const chartMap = new Map<string, number>();
-    
+
     const tempDate = new Date(startDate);
     while (tempDate <= endDate) {
       const dateStr = `${String(tempDate.getDate()).padStart(2, '0')}/${String(tempDate.getMonth() + 1).padStart(2, '0')}`;
@@ -265,7 +263,7 @@ export class DashboardService {
   // B16: Automated Reports
   async exportReport(startDateStr?: string, endDateStr?: string, facilityIdStr?: string, user?: any) {
     const stats = await this.getStats(startDateStr, endDateStr, facilityIdStr, user);
-    
+
     const excelData = [
       {
         'Ngày xuất báo cáo': new Date().toLocaleDateString('vi-VN'),
