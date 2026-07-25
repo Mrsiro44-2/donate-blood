@@ -321,7 +321,7 @@ export default function BlogPostsTab() {
                             setFormData(prev => ({...prev, thumbnail_url: url}));
                             toast.success('Tải ảnh thành công', { id: toastId });
                           } catch (err) {
-                            toast.error('Lỗi khi tải ảnh', { id: toastId });
+                            toast.error('Lỗi khi tải ảnh: ' + err?.response?.data?.message, { id: toastId });
                           }
                         }
                       }} 

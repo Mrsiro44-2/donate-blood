@@ -6,6 +6,8 @@ import { BookDonationSlotDto } from './dto/donor.dto';
 import { RecordDonationDto, UpdateSlotStatusDto, UpdateDonorProfileDto } from './dto/donor.dto';
 import { ExcelUtil } from '../common/utils/excel.util';
 import { NotificationsService, NotificationType } from '../notifications/notifications.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { SystemSettingKey } from '../common/enums';
 
 @Injectable()
 export class DonorService {
@@ -14,6 +16,7 @@ export class DonorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly systemSettingsService: SystemSettingsService,
   ) { }
 
   async registerDonorProfile(userId: number, data: any) {
@@ -59,7 +62,7 @@ export class DonorService {
     let next_eligible_date = null;
     let days_until_next_donation = 0;
     let is_eligible = true;
-    
+
     if (latestDonation) {
       if (latestDonation.next_eligible_date) {
         next_eligible_date = latestDonation.next_eligible_date;
@@ -68,15 +71,15 @@ export class DonorService {
         d.setDate(d.getDate() + 84);
         next_eligible_date = d;
       }
-      
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const eligibleDate = new Date(next_eligible_date);
       eligibleDate.setHours(0, 0, 0, 0);
-      
+
       const diffTime = eligibleDate.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays > 0) {
         days_until_next_donation = diffDays;
         is_eligible = false;
@@ -803,7 +806,7 @@ export class DonorService {
           where: { request_id: requestId },
           data: { units_fulfilled: newFulfilled, status_id: newStatusId }
         });
-        
+
         if (newStatusId !== matchedRequest.status_id) {
           await tx.blood_request_status_history.create({
             data: {
@@ -894,9 +897,10 @@ export class DonorService {
           });
         }
 
-        // Tạo sẵn nhắc nhở
+        const reminderDaysStr = await this.systemSettingsService.getSettingValue(SystemSettingKey.REMINDER_DAYS_BEFORE_ELIGIBLE, '3');
+        const reminderDays = parseInt(reminderDaysStr, 10) || 3;
         const upcomingDate = new Date(nextDate);
-        upcomingDate.setDate(upcomingDate.getDate() - 3);
+        upcomingDate.setDate(upcomingDate.getDate() - reminderDays);
 
         await tx.donation_reminders.createMany({
           data: [
