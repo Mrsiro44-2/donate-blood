@@ -66,3 +66,8 @@ export enum DestinationType {
   EMAIL = 'email',
   PHONE = 'phone',
 }
+
+export enum SystemSettingKey {
+  REMINDER_DAYS_BEFORE_ELIGIBLE = 'reminder_days_before_eligible',
+  MAX_IMAGE_UPLOAD_SIZE_MB = 'max_image_upload_size_mb',
+}
