@@ -62,13 +62,13 @@ export default function BloodMapPage() {
 
       let facilityList: any[] = [];
       if (facRes) {
-        const data = facRes.data;
+        const data: any = (facRes as any).data;
         facilityList = Array.isArray(data) ? data : (data?.data || []);
       }
 
       let requestList: any[] = [];
       if (reqRes) {
-        const data = reqRes.data;
+        const data: any = (reqRes as any).data;
         if (Array.isArray(data)) requestList = data;
         else if (data?.data && Array.isArray(data.data)) requestList = data.data;
         else if (Array.isArray(reqRes)) requestList = reqRes as any;

@@ -32,6 +32,7 @@ async function main() {
   await prisma.blood_request_statuses.deleteMany();
   await prisma.urgency_levels.deleteMany();
   
+  await prisma.user_sessions.deleteMany();
   await prisma.users.deleteMany();
   
   await prisma.medical_facilities.deleteMany();

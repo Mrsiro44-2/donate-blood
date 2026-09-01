@@ -211,7 +211,7 @@ export class RequestService {
         // Cập nhật trạng thái request
         await tx.blood_requests.update({
           where: { request_id: requestId },
-          data: { status_id: allocatedStatus!.status_id, fulfilled_from_stock: true, assigned_staff_id: user.user_id },
+          data: { status_id: allocatedStatus!.status_id, assigned_staff_id: user.user_id },
         });
 
         for (const bag of availableInventory) {
@@ -255,7 +255,7 @@ export class RequestService {
 
         await tx.blood_requests.update({
           where: { request_id: requestId },
-          data: { status_id: matchingStatus!.status_id, needs_donor_match: true, assigned_staff_id: user.user_id },
+          data: { status_id: matchingStatus!.status_id, assigned_staff_id: user.user_id },
         });
 
         await tx.blood_request_status_history.create({
