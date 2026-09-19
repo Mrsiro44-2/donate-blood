@@ -110,7 +110,7 @@ export const Header = () => {
   const isAdmin = userRole && ['ADMIN', 'STAFF', 'MODERATOR', 'HOSPITAL_STAFF'].includes(userRole);
 
   return (
-    <header className="sticky top-0 z-50 w-full glass border-b border-slate-200/60">
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">

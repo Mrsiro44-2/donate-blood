@@ -122,9 +122,9 @@ export default function BookDonationPage() {
         }).catch(() => null) : Promise.resolve(null)
       ]);
       
-      if (slotsRes && slotsRes.data) setMySlots(slotsRes.data);
-      if (schedRes && schedRes.data) setSchedules(schedRes.data);
-      if (historyRes && historyRes.data) setMyHistory(historyRes.data);
+      if (slotsRes) setMySlots(Array.isArray(slotsRes) ? slotsRes : (slotsRes.data || []));
+      if (schedRes) setSchedules(Array.isArray(schedRes) ? schedRes : (schedRes.data || []));
+      if (historyRes) setMyHistory(Array.isArray(historyRes) ? historyRes : (historyRes.data || []));
       if (reqRes) setRequestContext(reqRes);
       
       if (donorRes && donorRes.data) {
@@ -148,6 +148,14 @@ export default function BookDonationPage() {
       setSelectedMySlot(hasSlot);
       setIsViewModalOpen(true);
       return;
+    }
+
+    if (donorProfile?.next_eligible_date) {
+      const eligibleDate = startOfDay(parseISO(donorProfile.next_eligible_date));
+      if (isBefore(day, eligibleDate)) {
+        toast.error(`Bạn chưa đủ điều kiện thời gian để hiến máu vào ngày này. Ngày có thể hiến tiếp theo là ${format(eligibleDate, 'dd/MM/yyyy')}`);
+        return;
+      }
     }
 
     let openSchedules = schedules.filter(sch => isSameDay(parseISO(sch.date), day));
@@ -349,7 +357,12 @@ export default function BookDonationPage() {
             const mySlot = mySlots.find(s => s.schedule && isSameDay(parseISO(s.schedule.date), day));
             const openSchedulesCount = schedules.filter(sch => isSameDay(parseISO(sch.date), day)).length;
 
-            const isDisabled = (isPast && !mySlot) || isAfterRequiredDate;
+            const isBeforeEligible = Boolean(
+              donorProfile?.next_eligible_date &&
+              isBefore(day, startOfDay(parseISO(donorProfile.next_eligible_date)))
+            );
+
+            const isDisabled = (isPast && !mySlot) || isAfterRequiredDate || (isBeforeEligible && !mySlot);
 
             return (
               <div 
@@ -368,6 +381,12 @@ export default function BookDonationPage() {
                 `}>
                   {format(day, 'd')}
                 </div>
+
+                {!isPast && !mySlot && isBeforeEligible && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded font-medium text-center">
+                    Chưa đủ ngày
+                  </span>
+                )}
 
                 {mySlot && mySlot.schedule && (
                   (() => {
@@ -747,14 +766,14 @@ export default function BookDonationPage() {
           </div>
         )}
       </BaseModal>
-      {/* Terms Modal */}
+      {/* Terms Modal - Hiển thị xếp tầng đè lên trên Modal đăng ký (z-[10002] > z-[9999]) */}
       <BaseModal
         open={isTermsModalOpen}
         onOpenChange={setIsTermsModalOpen}
         title="Lưu ý và Điều khoản hiến máu"
         size="2xl"
         hideFooter
-        zIndexClass="z-[60]"
+        zIndexClass="z-[10002]"
       >
         <div 
           className="prose prose-slate max-w-none text-sm bg-slate-50 p-6 rounded-xl border border-slate-100"

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PaginationDto } from '../common/pagination.dto';
@@ -47,6 +47,67 @@ export class DonorService {
     });
   }
 
+  async calculateDonorEligibility(userId: number) {
+    const profile = await this.prisma.donor_profiles.findUnique({
+      where: { user_id: userId },
+    });
+
+    const latestDonation = await this.prisma.donations.findFirst({
+      where: { donor_user_id: userId, status_code: 'COMPLETED' },
+      orderBy: { donation_date: 'desc' },
+    });
+
+    let nextEligibleDate: Date | null = null;
+
+    if (latestDonation) {
+      if (latestDonation.next_eligible_date) {
+        nextEligibleDate = new Date(latestDonation.next_eligible_date);
+      } else {
+        const d = new Date(latestDonation.donation_date);
+        d.setDate(d.getDate() + 84);
+        nextEligibleDate = d;
+      }
+    } else if (profile?.next_eligible_date) {
+      nextEligibleDate = new Date(profile.next_eligible_date);
+    }
+
+    let daysUntilNextDonation = 0;
+    let isEligible = true;
+
+    if (nextEligibleDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const eligibleDate = new Date(nextEligibleDate);
+      eligibleDate.setHours(0, 0, 0, 0);
+
+      const diffTime = eligibleDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 0) {
+        daysUntilNextDonation = diffDays;
+        isEligible = false;
+      }
+    }
+
+    // Tự động đồng bộ lại donor_profiles.next_eligible_date nếu chưa khớp
+    if (profile) {
+      const dbDateStr = profile.next_eligible_date ? new Date(profile.next_eligible_date).toISOString().slice(0, 10) : null;
+      const calcDateStr = nextEligibleDate ? new Date(nextEligibleDate).toISOString().slice(0, 10) : null;
+      if (dbDateStr !== calcDateStr) {
+        await this.prisma.donor_profiles.update({
+          where: { user_id: userId },
+          data: { next_eligible_date: nextEligibleDate }
+        }).catch(() => {});
+      }
+    }
+
+    return {
+      nextEligibleDate,
+      daysUntilNextDonation,
+      isEligible,
+    };
+  }
+
   async getDonorProfile(userId: number) {
     const profile = await this.prisma.donor_profiles.findUnique({
       where: { user_id: userId },
@@ -54,43 +115,13 @@ export class DonorService {
     });
     if (!profile) throw new NotFoundException('Hồ sơ không tồn tại');
 
-    const latestDonation = await this.prisma.donations.findFirst({
-      where: { donor_user_id: userId, status_code: 'COMPLETED' },
-      orderBy: { donation_date: 'desc' },
-    });
-
-    let next_eligible_date = null;
-    let days_until_next_donation = 0;
-    let is_eligible = true;
-
-    if (latestDonation) {
-      if (latestDonation.next_eligible_date) {
-        next_eligible_date = latestDonation.next_eligible_date;
-      } else {
-        const d = new Date(latestDonation.donation_date);
-        d.setDate(d.getDate() + 84);
-        next_eligible_date = d;
-      }
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const eligibleDate = new Date(next_eligible_date);
-      eligibleDate.setHours(0, 0, 0, 0);
-
-      const diffTime = eligibleDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays > 0) {
-        days_until_next_donation = diffDays;
-        is_eligible = false;
-      }
-    }
+    const eligibility = await this.calculateDonorEligibility(userId);
 
     return {
       ...profile,
-      next_eligible_date,
-      days_until_next_donation,
-      is_eligible
+      next_eligible_date: eligibility.nextEligibleDate,
+      days_until_next_donation: eligibility.daysUntilNextDonation,
+      is_eligible: eligibility.isEligible
     };
   }
 
@@ -250,14 +281,12 @@ export class DonorService {
     }
 
     // Kiểm tra quy tắc khoảng cách hiến máu (next_eligible_date)
-    const donorProfile = await this.prisma.donor_profiles.findUnique({
-      where: { user_id: userId }
-    });
+    const eligibility = await this.calculateDonorEligibility(userId);
 
-    if (donorProfile && donorProfile.next_eligible_date) {
+    if (eligibility.nextEligibleDate) {
       const scheduleDate = new Date(schedule.date);
       scheduleDate.setHours(0, 0, 0, 0);
-      const nextDate = new Date(donorProfile.next_eligible_date);
+      const nextDate = new Date(eligibility.nextEligibleDate);
       nextDate.setHours(0, 0, 0, 0);
 
       if (scheduleDate < nextDate) {
@@ -501,7 +530,8 @@ export class DonorService {
       where: { donation_id: donationId },
       include: {
         donor: { include: { blood_type: true } },
-        facility: true
+        facility: true,
+        certificate: { include: { approver: { select: { full_name: true } } } }
       }
     });
 
@@ -509,14 +539,31 @@ export class DonorService {
     if (donation.donor_user_id !== userId) throw new BadRequestException('Bạn không có quyền xem chứng nhận này');
     if (donation.status_code !== 'COMPLETED') throw new BadRequestException('Chỉ cấp chứng nhận cho lần hiến máu đã hoàn thành');
 
+    const cert = donation.certificate;
+
     return {
-      certificate_no: `BL-${donation.donation_date.getFullYear()}-${String(donation.donation_id).padStart(5, '0')}`,
+      certificate_no: cert?.certificate_code || `BL-${donation.donation_date.getFullYear()}-${String(donation.donation_id).padStart(5, '0')}`,
+      donation_id: donation.donation_id,
       donor_name: donation.donor.full_name,
-      blood_type: donation.donor.blood_type?.blood_type_code,
+      donor_dob: donation.donor.date_of_birth,
+      donor_address: donation.donor.address,
+      donor_identity_card: donation.donor.identity_card,
+      blood_type: donation.donor.blood_type?.blood_type_code || donation.blood_type_id,
       donation_date: donation.donation_date,
       volume_ml: donation.volume_ml,
+      facility_id: donation.facility_id,
       facility_name: donation.facility?.facility_name,
-      issue_date: new Date()
+      facility_address: donation.facility?.address,
+      facility_seal_url: donation.facility?.seal_image_url,
+      facility_signature_url: donation.facility?.signature_image_url,
+      director_name: donation.facility?.director_name,
+      director_title: donation.facility?.director_title,
+      issue_date: cert?.issued_at || cert?.approved_at || new Date(),
+      cert_status: cert?.status || 'PENDING',
+      approved_by_name: cert?.approver?.full_name || null,
+      approved_at: cert?.approved_at || null,
+      seal_number: cert?.seal_number || null,
+      reject_reason: cert?.reject_reason || null,
     };
   }
 
@@ -525,22 +572,220 @@ export class DonorService {
       where: { donation_id: donationId },
       include: {
         donor: { include: { blood_type: true } },
-        facility: true
+        facility: true,
+        certificate: { include: { approver: { select: { full_name: true } } } }
       }
     });
 
     if (!donation) throw new NotFoundException('Không tìm thấy thông tin hiến máu');
     if (donation.status_code !== 'COMPLETED') throw new BadRequestException('Chỉ cấp chứng nhận cho lần hiến máu đã hoàn thành');
 
+    const cert = donation.certificate;
+    if (!cert || cert.status !== 'APPROVED') {
+      throw new BadRequestException('Chứng nhận chưa được duyệt hoặc không tồn tại');
+    }
+
     return {
-      certificate_no: `BL-${donation.donation_date.getFullYear()}-${String(donation.donation_id).padStart(5, '0')}`,
+      certificate_no: cert.certificate_code,
+      donation_id: donation.donation_id,
       donor_name: donation.donor.full_name,
+      donor_dob: donation.donor.date_of_birth,
+      donor_address: donation.donor.address,
+      donor_identity_card: donation.donor.identity_card,
       blood_type: donation.donor.blood_type?.blood_type_code,
       donation_date: donation.donation_date,
       volume_ml: donation.volume_ml,
+      facility_id: donation.facility_id,
       facility_name: donation.facility?.facility_name,
-      issue_date: new Date()
+      facility_address: donation.facility?.address,
+      facility_seal_url: donation.facility?.seal_image_url,
+      facility_signature_url: donation.facility?.signature_image_url,
+      director_name: donation.facility?.director_name,
+      director_title: donation.facility?.director_title,
+      issue_date: cert.issued_at || cert.approved_at,
+      cert_status: cert.status,
+      approved_by_name: cert.approver?.full_name || null,
+      approved_at: cert.approved_at,
+      seal_number: cert.seal_number,
     };
+  }
+
+  async getMyCertificates(userId: number, query: PaginationDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      donation: {
+        donor_user_id: userId
+      }
+    };
+
+    if (query.status && query.status !== 'ALL') {
+      where.status = query.status;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.donation_certificates.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          donation: {
+            include: {
+              facility: true,
+              blood_type: true,
+              component: true,
+            }
+          },
+          approver: { select: { full_name: true } }
+        },
+        orderBy: { created_at: 'desc' }
+      }),
+      this.prisma.donation_certificates.count({ where })
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+    };
+  }
+
+  // --- Certificate Management (Admin/Staff) ---
+
+  async listCertificates(query: PaginationDto, user?: any) {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status && query.status !== 'ALL') {
+      where.status = query.status;
+    }
+
+    if (user?.role_code === 'HOSPITAL_STAFF') {
+      where.donation = {
+        facility_id: user.facility_id || -1
+      };
+    }
+
+    if (query.search) {
+      const searchConditions = [
+        { certificate_code: { contains: query.search } },
+        { donation: { donor: { full_name: { contains: query.search } } } }
+      ];
+
+      if (where.donation) {
+        where.AND = [
+          { donation: where.donation },
+          { OR: searchConditions }
+        ];
+        delete where.donation;
+      } else {
+        where.OR = searchConditions;
+      }
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.donation_certificates.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          donation: {
+            include: {
+              donor: { select: { full_name: true, email: true, phone: true, date_of_birth: true, identity_card: true, address: true } },
+              facility: { select: { facility_id: true, facility_name: true, seal_image_url: true, signature_image_url: true, director_name: true, director_title: true } },
+              blood_type: { select: { blood_type_code: true } }
+            }
+          },
+          approver: { select: { full_name: true } }
+        },
+        orderBy: { created_at: 'desc' }
+      }),
+      this.prisma.donation_certificates.count({ where })
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+    };
+  }
+
+  async approveCertificate(certId: number, user: any) {
+    const cert = await this.prisma.donation_certificates.findUnique({
+      where: { certificate_id: certId },
+      include: { donation: { include: { donor: true, facility: true } } }
+    });
+    if (!cert) throw new NotFoundException('Không tìm thấy chứng nhận');
+
+    // Kiểm tra quyền hạn nếu là nhân viên bệnh viện
+    if (user?.role_code === 'HOSPITAL_STAFF' && cert.donation.facility_id !== user.facility_id) {
+      throw new ForbiddenException('Bạn chỉ có quyền duyệt chứng nhận của cơ sở y tế mình trực thuộc');
+    }
+
+    if (cert.status === 'APPROVED') throw new BadRequestException('Chứng nhận đã được duyệt');
+
+    const sealNumber = `SEAL-${new Date().getFullYear()}-${String(certId).padStart(5, '0')}`;
+
+    const updated = await this.prisma.donation_certificates.update({
+      where: { certificate_id: certId },
+      data: {
+        status: 'APPROVED',
+        approved_by: user.user_id,
+        approved_at: new Date(),
+        seal_number: sealNumber,
+        issued_at: new Date()
+      }
+    });
+
+    // Notify donor
+    await this.notificationsService.createNotification({
+      user_ids: [cert.donation.donor_user_id],
+      title: 'Chứng nhận hiến máu đã được duyệt',
+      message: `Chứng nhận hiến máu của bạn (${cert.certificate_code}) tại ${cert.donation.facility?.facility_name || 'cơ sở y tế'} đã được duyệt. Bạn có thể xem và in chứng nhận ngay bây giờ.`,
+      notification_type: 'INFO' as any,
+      reference_type: 'CERTIFICATE',
+      reference_id: certId
+    });
+
+    return updated;
+  }
+
+  async rejectCertificate(certId: number, user: any, reason: string) {
+    const cert = await this.prisma.donation_certificates.findUnique({
+      where: { certificate_id: certId },
+      include: { donation: { include: { donor: true } } }
+    });
+    if (!cert) throw new NotFoundException('Không tìm thấy chứng nhận');
+
+    // Kiểm tra quyền hạn nếu là nhân viên bệnh viện
+    if (user?.role_code === 'HOSPITAL_STAFF' && cert.donation.facility_id !== user.facility_id) {
+      throw new ForbiddenException('Bạn chỉ có quyền từ chối chứng nhận của cơ sở y tế mình trực thuộc');
+    }
+
+    if (cert.status === 'APPROVED') throw new BadRequestException('Không thể từ chối chứng nhận đã duyệt');
+
+    const updated = await this.prisma.donation_certificates.update({
+      where: { certificate_id: certId },
+      data: {
+        status: 'REJECTED',
+        approved_by: user.user_id,
+        approved_at: new Date(),
+        reject_reason: reason
+      }
+    });
+
+    await this.notificationsService.createNotification({
+      user_ids: [cert.donation.donor_user_id],
+      title: 'Chứng nhận hiến máu bị từ chối',
+      message: `Chứng nhận hiến máu của bạn (${cert.certificate_code}) đã bị từ chối. Lý do: ${reason}`,
+      notification_type: 'WARNING' as any,
+      reference_type: 'CERTIFICATE',
+      reference_id: certId
+    });
+
+    return updated;
   }
 
   async getPublicLeaderboard(query: any) {
@@ -550,16 +795,30 @@ export class DonorService {
     const sortBy = query.sortBy || 'donations';
     const sortOrder = query.sortOrder || 'desc';
 
+    const where: any = {
+      OR: [
+        { is_donor_registered: true },
+        { donor_profile: { isNot: null } },
+        { donations_donor: { some: { status_code: 'COMPLETED' } } }
+      ]
+    };
+    if (search) {
+      where.full_name = { contains: search };
+    }
+
     const users = await this.prisma.users.findMany({
-      where: {
-        is_donor_registered: true,
-        full_name: { contains: search }
-      },
+      where,
       select: {
         user_id: true,
         full_name: true,
         avatar_url: true,
         blood_type: { select: { blood_type_code: true } },
+        donor_profile: {
+          select: {
+            total_donations: true,
+            blood_type: { select: { blood_type_code: true } }
+          }
+        },
         donations_donor: {
           where: { status_code: 'COMPLETED' },
           select: { volume_ml: true }
@@ -568,15 +827,19 @@ export class DonorService {
     });
 
     const mappedUsers = users.map(user => {
-      const totalDonations = user.donations_donor.length;
-      const totalVolume = user.donations_donor.reduce((sum, d) => sum + (d.volume_ml || 0), 0);
+      const donationRecordsCount = user.donations_donor.length;
+      const profileCount = user.donor_profile?.total_donations || 0;
+      const totalDonations = Math.max(donationRecordsCount, profileCount);
+      const donationVolume = user.donations_donor.reduce((sum, d) => sum + (d.volume_ml || 0), 0);
+      const totalVolume = donationVolume > 0 ? donationVolume : (totalDonations * 350);
+      const bloodType = user.blood_type?.blood_type_code || user.donor_profile?.blood_type?.blood_type_code;
 
       let badgeCount = 0;
       if (totalDonations >= 1) badgeCount++;
       if (totalDonations >= 3) badgeCount++;
       if (totalDonations >= 5) badgeCount++;
       if (totalDonations >= 10) badgeCount++;
-      if (user.blood_type && (user.blood_type.blood_type_code.includes('-') || user.blood_type.blood_type_code === 'AB+')) {
+      if (bloodType && (bloodType.includes('-') || bloodType === 'AB+')) {
         badgeCount++;
       }
 
@@ -584,7 +847,7 @@ export class DonorService {
         userId: user.user_id,
         name: user.full_name,
         avatar: user.avatar_url,
-        bloodType: user.blood_type?.blood_type_code,
+        bloodType: bloodType || null,
         totalDonations,
         totalVolume,
         badgeCount
@@ -592,6 +855,9 @@ export class DonorService {
     });
 
     let filteredUsers = search ? mappedUsers : mappedUsers.filter(u => u.totalDonations > 0);
+    if (filteredUsers.length === 0 && !search) {
+      filteredUsers = mappedUsers;
+    }
 
     filteredUsers.sort((a, b) => {
       let valA, valB;
@@ -630,7 +896,9 @@ export class DonorService {
   }
 
   async getSchedules(facilityId?: number) {
-    const where: any = { status: 'OPEN', date: { gte: new Date() } };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const where: any = { status: 'OPEN', date: { gte: today } };
     if (facilityId) where.facility_id = facilityId;
 
     return await this.prisma.facility_donation_schedules.findMany({
@@ -672,7 +940,10 @@ export class DonorService {
           user: { select: { full_name: true, email: true, phone: true, date_of_birth: true, gender: true, address: true, identity_card: true, blood_type_id: true, donor_profile: { select: { blood_type_id: true } } } },
           schedule: { include: { facility: true } }
         },
-        orderBy: { specific_date: 'desc' },
+        orderBy: [
+          { created_at: 'desc' },
+          { slot_id: 'desc' },
+        ],
       }),
       this.prisma.donor_availability_slots.count({ where }),
     ]);
@@ -923,6 +1194,16 @@ export class DonorService {
           ]
         });
       }
+
+      // Auto-create certificate (PENDING — cần admin/staff duyệt)
+      const certCode = `BL-${new Date(dto.donation_date).getFullYear()}-${String(donation.donation_id).padStart(5, '0')}`;
+      await tx.donation_certificates.create({
+        data: {
+          donation_id: donation.donation_id,
+          certificate_code: certCode,
+          status: 'PENDING'
+        }
+      });
 
       return donation;
     });

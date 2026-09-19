@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, ParseIntPipe, Query, Res, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, ParseIntPipe, Query, Res, UploadedFile, UseInterceptors, BadRequestException, Req } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { MasterDataService } from './master-data.service';
@@ -121,6 +121,18 @@ export class MasterDataController {
   async importFacilitiesExcel(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Vui lòng chọn file Excel');
     return await this.masterDataService.importFacilitiesExcel(file.buffer);
+  }
+
+  @Roles(RoleCode.ADMIN, RoleCode.HOSPITAL_STAFF)
+  @Get('my-facility')
+  async getMyFacility(@Req() req: any) {
+    return await this.masterDataService.getMyFacility(req.user);
+  }
+
+  @Roles(RoleCode.ADMIN, RoleCode.HOSPITAL_STAFF)
+  @Put('facilities/:id/seal-signature')
+  async updateFacilitySealSignature(@Param('id', ParseIntPipe) id: number, @Body() dto: any, @Req() req: any) {
+    return await this.masterDataService.updateFacilitySealSignature(id, dto, req.user);
   }
 
   @Roles(RoleCode.ADMIN)

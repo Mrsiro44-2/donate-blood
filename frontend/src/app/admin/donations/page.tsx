@@ -303,9 +303,14 @@ export default function AdminDonationsPage() {
       render: (slot) => <span className="text-slate-500">{slot.user?.email}</span>
     },
     {
+      key: 'created_at',
+      title: 'Thời gian gửi',
+      render: (slot) => <span className="text-slate-600 text-xs font-mono">{slot.created_at ? format(new Date(slot.created_at), 'dd/MM/yyyy HH:mm') : '-'}</span>
+    },
+    {
       key: 'date',
-      title: 'Ngày đăng ký',
-      render: (slot) => <span className="text-slate-800">{slot.specific_date ? format(new Date(slot.specific_date), 'dd/MM/yyyy') : (slot.schedule?.date ? format(new Date(slot.schedule.date), 'dd/MM/yyyy') : 'Theo lịch')}</span>
+      title: 'Ngày hẹn hiến',
+      render: (slot) => <span className="text-slate-800 font-medium">{slot.specific_date ? format(new Date(slot.specific_date), 'dd/MM/yyyy') : (slot.schedule?.date ? format(new Date(slot.schedule.date), 'dd/MM/yyyy') : 'Theo lịch')}</span>
     },
     {
       key: 'notes',
