@@ -42,6 +42,17 @@ export class DonorController {
     return await this.donorService.cancelDonationSlot(req.user.user_id, id);
   }
 
+  @Get('my-slots')
+  async getMySlots(@Req() req: any) {
+    return await this.donorService.getMySlots(req.user.user_id);
+  }
+
+  @Public()
+  @Get('schedules')
+  async getSchedules(@Query('facilityId') facilityId?: string) {
+    return await this.donorService.getSchedules(facilityId ? parseInt(facilityId) : undefined);
+  }
+
   @Get('history')
   async getHistory(@Req() req: any) {
     return await this.donorService.getDonationHistory(req.user.user_id);
@@ -60,6 +71,11 @@ export class DonorController {
   @Get('certificate/:donationId')
   async getCertificate(@Req() req: any, @Param('donationId', ParseIntPipe) donationId: number) {
     return await this.donorService.getCertificateData(req.user.user_id, donationId);
+  }
+
+  @Get('my-certificates')
+  async getMyCertificates(@Req() req: any, @Query() query: PaginationDto) {
+    return await this.donorService.getMyCertificates(req.user.user_id, query);
   }
 
   @Public()
@@ -86,16 +102,6 @@ export class DonorController {
     });
   }
 
-  @Get('my-slots')
-  async getMySlots(@Req() req: any) {
-    return await this.donorService.getMySlots(req.user.user_id);
-  }
-
-  @Public()
-  @Get('schedules')
-  async getSchedules(@Query('facilityId') facilityId: string) {
-    return await this.donorService.getSchedules(facilityId ? Number(facilityId) : undefined);
-  }
 
   // --- FACILITY ADMIN ROUTES ---
   @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF)
@@ -146,5 +152,24 @@ export class DonorController {
   @Post('donations')
   async recordDonation(@Req() req: any, @Body() dto: RecordDonationDto) {
     return await this.donorService.recordDonation(req.user, dto);
+  }
+
+  // --- CERTIFICATE MANAGEMENT ---
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF)
+  @Get('certificates')
+  async listCertificates(@Query() query: PaginationDto, @Req() req: any) {
+    return await this.donorService.listCertificates(query, req.user);
+  }
+
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF)
+  @Put('certificates/:id/approve')
+  async approveCertificate(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return await this.donorService.approveCertificate(id, req.user);
+  }
+
+  @Roles(RoleCode.ADMIN, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF)
+  @Put('certificates/:id/reject')
+  async rejectCertificate(@Param('id', ParseIntPipe) id: number, @Body() body: { reason: string }, @Req() req: any) {
+    return await this.donorService.rejectCertificate(id, req.user, body.reason);
   }
 }

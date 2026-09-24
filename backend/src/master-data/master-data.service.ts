@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { 
   CreateBloodTypeDto, UpdateBloodTypeDto, 
@@ -251,6 +251,48 @@ export class MasterDataService {
     return await this.prisma.medical_facilities.update({
       where: { facility_id: id },
       data: { is_active: false }
+    });
+  }
+
+  async getMyFacility(user: any) {
+    let targetFacilityId = user.facility_id;
+    if (!targetFacilityId) {
+      const firstFacility = await this.prisma.medical_facilities.findFirst({
+        where: { is_active: true },
+        orderBy: [{ is_primary: 'desc' }, { facility_id: 'asc' }],
+        include: { province: true, ward: true }
+      });
+      if (firstFacility) return firstFacility;
+      throw new NotFoundException('Không tìm thấy cơ sở y tế');
+    }
+    const facility = await this.prisma.medical_facilities.findUnique({
+      where: { facility_id: targetFacilityId },
+      include: { province: true, ward: true }
+    });
+    if (!facility) {
+      throw new NotFoundException('Không tìm thấy cơ sở y tế');
+    }
+    return facility;
+  }
+
+  async updateFacilitySealSignature(id: number, dto: any, user: any) {
+    if (user.role_code === 'HOSPITAL_STAFF' && user.facility_id !== id) {
+      throw new ForbiddenException('Bạn chỉ có quyền cập nhật con dấu và chữ ký của cơ sở y tế mình trực thuộc');
+    }
+
+    const facility = await this.prisma.medical_facilities.findUnique({
+      where: { facility_id: id }
+    });
+    if (!facility) throw new NotFoundException('Không tìm thấy cơ sở y tế');
+
+    return await this.prisma.medical_facilities.update({
+      where: { facility_id: id },
+      data: {
+        seal_image_url: dto.seal_image_url !== undefined ? dto.seal_image_url : facility.seal_image_url,
+        signature_image_url: dto.signature_image_url !== undefined ? dto.signature_image_url : facility.signature_image_url,
+        director_name: dto.director_name !== undefined ? dto.director_name : facility.director_name,
+        director_title: dto.director_title !== undefined ? dto.director_title : facility.director_title,
+      }
     });
   }
 

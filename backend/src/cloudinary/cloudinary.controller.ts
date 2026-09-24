@@ -12,7 +12,7 @@ export class CloudinaryController {
     private readonly systemSettingsService: SystemSettingsService
   ) {}
 
-  @Roles(RoleCode.ADMIN, RoleCode.MODERATOR, RoleCode.STAFF)
+  @Roles(RoleCode.ADMIN, RoleCode.MODERATOR, RoleCode.STAFF, RoleCode.HOSPITAL_STAFF)
   @Post('image')
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
